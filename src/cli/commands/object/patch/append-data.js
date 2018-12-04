@@ -10,13 +10,12 @@ const print = require('../../../utils').print
 function appendData (key, data, ipfs) {
   ipfs.object.patch.appendData(key, data, {
     enc: 'base58'
-  }, (err, node) => {
+  }, (err, cid) => {
     if (err) {
       throw err
     }
-    const nodeJSON = node.toJSON()
 
-    print(nodeJSON.multihash)
+    print(cid.toBaseEncodedString())
   })
 }
 

@@ -10,17 +10,20 @@ module.exports = {
 
   describe: 'Create new ipfs objects',
 
-  builder: {},
+  builder: {
+    'cid-base': {
+      default: 'base58btc',
+      describe: 'CID base to use.'
+    }
+  },
 
   handler (argv) {
-    argv.ipfs.object.new(argv.template, (err, node) => {
+    argv.ipfs.object.new(argv.template, (err, cid) => {
       if (err) {
         throw err
       }
 
-      const nodeJSON = node.toJSON()
-
-      print(nodeJSON.multihash)
+      print(cid.toBaseEncodedString(argv.cidBase))
     })
   }
 }

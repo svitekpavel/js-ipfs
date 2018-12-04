@@ -18,7 +18,7 @@ const EventEmitter = require('events')
 const config = require('./config')
 const boot = require('./boot')
 const components = require('./components')
-const IPNS = require('./ipns')
+
 // replaced by repo-browser when running in the browser
 const defaultRepo = require('./runtime/repo-nodejs')
 const preload = require('./preload')
@@ -126,8 +126,9 @@ class IPFS extends EventEmitter {
     })
     this._preload = preload(this)
     this._mfsPreload = mfsPreload(this)
-    this._ipns = new IPNS(null, this)
+
     this._print = this._options.silent ? this.log : console.log
+    this._ipns = undefined
 
     // IPFS Core exposed components
     //   - for booting up a node
@@ -138,6 +139,7 @@ class IPFS extends EventEmitter {
     this.shutdown = this.stop
     this.isOnline = components.isOnline(this)
     //   - interface-ipfs-core defined API
+    Object.assign(this, components.filesRegular(this))
     this.version = components.version(this)
     this.id = components.id(this)
     this.repo = components.repo(this)
@@ -146,9 +148,9 @@ class IPFS extends EventEmitter {
     this.block = components.block(this)
     this.object = components.object(this)
     this.dag = components.dag(this)
+    this.files = components.filesMFS(this)
     this.libp2p = components.libp2p(this)
     this.swarm = components.swarm(this)
-    this.files = components.files(this)
     this.name = components.name(this)
     this.bitswap = components.bitswap(this)
     this.pin = components.pin(this)
@@ -165,6 +167,14 @@ class IPFS extends EventEmitter {
     if (this._options.EXPERIMENTAL.pubsub) {
       this.log('EXPERIMENTAL pubsub is enabled')
     }
+    if (this._options.EXPERIMENTAL.ipnsPubsub) {
+      if (!this._options.EXPERIMENTAL.pubsub) {
+        this.log('EXPERIMENTAL pubsub is enabled to use IPNS pubsub')
+        this._options.EXPERIMENTAL.pubsub = true
+      }
+
+      this.log('EXPERIMENTAL IPNS pubsub is enabled')
+    }
     if (this._options.EXPERIMENTAL.sharding) {
       this.log('EXPERIMENTAL sharding is enabled')
     }
@@ -174,23 +184,11 @@ class IPFS extends EventEmitter {
 
     this.state = require('./state')(this)
 
-    // ipfs.ls
-    this.ls = this.files.lsImmutable
-    this.lsReadableStream = this.files.lsReadableStreamImmutable
-    this.lsPullStream = this.files.lsPullStreamImmutable
-
     // ipfs.util
     this.util = {
-      crypto: crypto,
-      isIPFS: isIPFS
+      crypto,
+      isIPFS
     }
-
-    // ipfs.files
-    const mfs = components.mfs(this)
-
-    Object.keys(mfs).forEach(key => {
-      this.files[key] = mfs[key]
-    })
 
     boot(this)
   }

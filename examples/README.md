@@ -18,6 +18,7 @@ Let us know if you find any issue or if you want to contribute and add a new tut
 ## Examples
 
 - [js-ipfs in the browser with Browserify](./browser-browserify)
+- [js-ipfs in the browser with Parcel.js](./browser-parceljs)
 - [js-ipfs in the browser with WebPack](./browser-webpack)
 - [js-ipfs in the browser with a `<script>` tag](./browser-script-tag)
 - [js-ipfs in electron](./run-in-electron)
@@ -31,7 +32,9 @@ Let us know if you find any issue or if you want to contribute and add a new tut
 
 In this section, you will find explanations to different pieces of IPFS Architecture and how `js-ipfs` implements them.
 
-![](../img/core.png)
+![](../img/architecture.png)
+
+[Annotated version](https://user-images.githubusercontent.com/1211152/47606420-b6265780-da13-11e8-923b-b365a8534e0e.png)
 
 > These explanations are still a work in progress
 

@@ -10,19 +10,22 @@ module.exports = {
 
   describe: 'Remove a link from an object',
 
-  builder: {},
+  builder: {
+    'cid-base': {
+      default: 'base58btc',
+      describe: 'CID base to use.'
+    }
+  },
 
   handler (argv) {
     argv.ipfs.object.patch.rmLink(argv.root, { name: argv.link }, {
       enc: 'base58'
-    }, (err, node) => {
+    }, (err, cid) => {
       if (err) {
         throw err
       }
 
-      const nodeJSON = node.toJSON()
-
-      print(nodeJSON.multihash)
+      print(cid.toBaseEncodedString(argv.cidBase))
     })
   }
 }

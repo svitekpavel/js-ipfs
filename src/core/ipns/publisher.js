@@ -1,7 +1,6 @@
 'use strict'
 
 const PeerId = require('peer-id')
-const Record = require('libp2p-record').Record
 const { Key } = require('interface-datastore')
 const series = require('async/series')
 const errcode = require('err-code')
@@ -32,7 +31,7 @@ class IpnsPublisher {
 
     PeerId.createFromPrivKey(privKey.bytes, (err, peerId) => {
       if (err) {
-        callback(err)
+        return callback(err)
       }
 
       this._updateOrCreateRecord(privKey, value, lifetime, peerId, (err, record) => {
@@ -67,17 +66,17 @@ class IpnsPublisher {
 
       let keys
       try {
-        keys = ipns.getIdKeys(peerId.id)
+        keys = ipns.getIdKeys(peerId.toBytes())
       } catch (err) {
         log.error(err)
         return callback(err)
       }
 
       series([
-        (cb) => this._publishEntry(keys.ipnsKey, embedPublicKeyRecord || record, peerId, cb),
+        (cb) => this._publishEntry(keys.routingKey, embedPublicKeyRecord || record, peerId, cb),
         // Publish the public key if a public key cannot be extracted from the ID
         // We will be able to deprecate this part in the future, since the public keys will be only in the peerId
-        (cb) => embedPublicKeyRecord ? this._publishPublicKey(keys.pkKey, publicKey, peerId, cb) : cb()
+        (cb) => embedPublicKeyRecord ? this._publishPublicKey(keys.routingPubKey, publicKey, peerId, cb) : cb()
       ], (err) => {
         if (err) {
           log.error(err)
@@ -97,24 +96,22 @@ class IpnsPublisher {
       return callback(errcode(new Error(errMsg), 'ERR_INVALID_DATASTORE_KEY'))
     }
 
-    let rec
+    let entryData
     try {
       // Marshal record
-      const entryData = ipns.marshal(entry)
-      // Marshal to libp2p record
-      rec = new Record(key.toBuffer(), entryData)
+      entryData = ipns.marshal(entry)
     } catch (err) {
       log.error(err)
       return callback(err)
     }
 
-    // TODO Routing - this should be replaced by a put to the DHT
-    this._repo.datastore.put(key, rec.serialize(), (err, res) => {
+    // Add record to routing (buffer key)
+    this._routing.put(key.toBuffer(), entryData, (err, res) => {
       if (err) {
         const errMsg = `ipns record for ${key.toString()} could not be stored in the routing`
 
         log.error(errMsg)
-        return callback(errcode(new Error(errMsg), 'ERR_STORING_IN_DATASTORE'))
+        return callback(errcode(new Error(errMsg), 'ERR_PUTTING_TO_ROUTING'))
       }
 
       log(`ipns record for ${key.toString()} was stored in the routing`)
@@ -137,22 +134,13 @@ class IpnsPublisher {
       return callback(errcode(new Error(errMsg), 'ERR_UNDEFINED_PARAMETER'))
     }
 
-    let rec
-    try {
-      // Marshal to libp2p record
-      rec = new Record(key.toBuffer(), publicKey.bytes)
-    } catch (err) {
-      log.error(err)
-      return callback(err)
-    }
-
-    // TODO Routing - this should be replaced by a put to the DHT
-    this._repo.datastore.put(key, rec.serialize(), (err, res) => {
+    // Add public key to routing (buffer key)
+    this._routing.put(key.toBuffer(), publicKey.bytes, (err, res) => {
       if (err) {
         const errMsg = `public key for ${key.toString()} could not be stored in the routing`
 
         log.error(errMsg)
-        return callback(errcode(new Error(errMsg), 'ERR_STORING_IN_DATASTORE'))
+        return callback(errcode(new Error(errMsg), 'ERR_PUTTING_TO_ROUTING'))
       }
 
       log(`public key for ${key.toString()} was stored in the routing`)

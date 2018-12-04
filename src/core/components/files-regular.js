@@ -14,7 +14,7 @@ const waterfall = require('async/waterfall')
 const isStream = require('is-stream')
 const isSource = require('is-pull-stream').isSource
 const Duplex = require('readable-stream').Duplex
-const OtherBuffer = require('buffer').Buffer
+const isString = require('lodash/isString')
 const CID = require('cids')
 const toB58String = require('multihashes').toB58String
 const errCode = require('err-code')
@@ -23,6 +23,23 @@ const parseChunkerString = require('../utils').parseChunkerString
 const WRAPPER = 'wrapper/'
 
 function noop () {}
+
+function normalizePath (path) {
+  if (Buffer.isBuffer(path)) {
+    path = toB58String(path)
+  }
+  if (CID.isCID(path)) {
+    path = path.toBaseEncodedString()
+  }
+  if (path.indexOf('/ipfs/') === 0) {
+    path = path.substring('/ipfs/'.length)
+  }
+  if (path.charAt(path.length - 1) === '/') {
+    path = path.substring(0, path.length - 1)
+  }
+
+  return path
+}
 
 function prepareFile (self, opts, file, callback) {
   opts = opts || {}
@@ -47,7 +64,9 @@ function prepareFile (self, opts, file, callback) {
       }
 
       cb(null, {
-        path: opts.wrapWithDirectory ? file.path.substring(WRAPPER.length) : (file.path || b58Hash),
+        path: opts.wrapWithDirectory
+          ? file.path.substring(WRAPPER.length)
+          : (file.path || b58Hash),
         hash: b58Hash,
         size
       })
@@ -154,7 +173,8 @@ class AddHelper extends Duplex {
   }
 }
 
-module.exports = function files (self) {
+module.exports = function (self) {
+  // Internal add func that gets used by all add funcs
   function _addPullStream (options = {}) {
     let chunkerOptions
     try {
@@ -191,6 +211,7 @@ module.exports = function files (self) {
     )
   }
 
+  // Internal cat func that gets used by all cat funcs
   function _catPullStream (ipfsPath, options) {
     if (typeof ipfsPath === 'function') {
       throw new Error('You must supply an ipfsPath')
@@ -232,7 +253,8 @@ module.exports = function files (self) {
     return d
   }
 
-  function _lsPullStreamImmutable (ipfsPath, options) {
+  // Internal ls func that gets used by all ls funcs
+  function _lsPullStream (ipfsPath, options) {
     options = options || {}
 
     const path = normalizePath(ipfsPath)
@@ -270,15 +292,23 @@ module.exports = function files (self) {
 
         options = options || {}
 
-        const ok = Buffer.isBuffer(data) ||
-                   isStream.readable(data) ||
-                   Array.isArray(data) ||
-                   OtherBuffer.isBuffer(data) ||
-                   typeof data === 'object' ||
-                   isSource(data)
+        // Buffer, pull stream or Node.js stream
+        const isBufferOrStream = obj => Buffer.isBuffer(obj) || isStream.readable(obj) || isSource(obj)
+        // An object like { content?, path? }, where content isBufferOrStream and path isString
+        const isContentObject = obj => {
+          if (typeof obj !== 'object') return false
+          // path is optional if content is present
+          if (obj.content) return isBufferOrStream(obj.content)
+          // path must be a non-empty string if no content
+          return Boolean(obj.path) && isString(obj.path)
+        }
+        // An input atom: a buffer, stream or content object
+        const isInput = obj => isBufferOrStream(obj) || isContentObject(obj)
+        // All is ok if data isInput or data is an array of isInput
+        const ok = isInput(data) || (Array.isArray(data) && data.every(isInput))
 
         if (!ok) {
-          return callback(new Error('first arg must be a buffer, readable stream, pull stream, an object or array of objects'))
+          return callback(new Error('invalid input: expected buffer, readable stream, pull stream, object or array of objects'))
         }
 
         // CID v0 is for multihashes encoded with sha2-256
@@ -301,7 +331,7 @@ module.exports = function files (self) {
       return function () {
         const args = Array.from(arguments)
 
-        // If we files.add(<pull stream>), then promisify thinks the pull stream
+        // If we .add(<pull stream>), then promisify thinks the pull stream
         // is a callback! Add an empty options object in this case so that a
         // promise is returned.
         if (args.length === 1 && isSource(args[0])) {
@@ -337,7 +367,7 @@ module.exports = function files (self) {
       }
 
       if (typeof callback !== 'function') {
-        throw new Error('Please supply a callback to ipfs.files.cat')
+        throw new Error('Please supply a callback to ipfs.cat')
       }
 
       pull(
@@ -441,7 +471,7 @@ module.exports = function files (self) {
       return exporter(ipfsPath, self._ipld, options)
     },
 
-    lsImmutable: promisify((ipfsPath, options, callback) => {
+    ls: promisify((ipfsPath, options, callback) => {
       if (typeof options === 'function') {
         callback = options
         options = {}
@@ -450,7 +480,7 @@ module.exports = function files (self) {
       options = options || {}
 
       pull(
-        _lsPullStreamImmutable(ipfsPath, options),
+        _lsPullStream(ipfsPath, options),
         pull.collect((err, values) => {
           if (err) {
             callback(err)
@@ -461,27 +491,14 @@ module.exports = function files (self) {
       )
     }),
 
-    lsReadableStreamImmutable: (ipfsPath, options) => {
-      return toStream.source(_lsPullStreamImmutable(ipfsPath, options))
+    lsReadableStream: (ipfsPath, options) => {
+      return toStream.source(_lsPullStream(ipfsPath, options))
     },
 
-    lsPullStreamImmutable: _lsPullStreamImmutable
-  }
-}
+    lsPullStream: _lsPullStream
 
-function normalizePath (path) {
-  if (Buffer.isBuffer(path)) {
-    path = toB58String(path)
+    // TODO create addFromFs
+    // TODO create addFromStream
+    // TODO create addFromUrl
   }
-  if (CID.isCID(path)) {
-    path = path.toBaseEncodedString()
-  }
-  if (path.indexOf('/ipfs/') === 0) {
-    path = path.substring('/ipfs/'.length)
-  }
-  if (path.charAt(path.length - 1) === '/') {
-    path = path.substring(0, path.length - 1)
-  }
-
-  return path
 }

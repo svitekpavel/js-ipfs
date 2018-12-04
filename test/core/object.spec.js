@@ -9,6 +9,7 @@ chai.use(dirtyChai)
 const hat = require('hat')
 const IPFSFactory = require('ipfsd-ctl')
 const auto = require('async/auto')
+const waterfall = require('async/waterfall')
 const IPFS = require('../../src/core')
 
 describe('object', () => {
@@ -49,10 +50,10 @@ describe('object', () => {
     })
 
     it('should not error when passed null options', (done) => {
-      ipfs.object.put(Buffer.from(hat()), (err, dagNode) => {
+      ipfs.object.put(Buffer.from(hat()), (err, cid) => {
         expect(err).to.not.exist()
 
-        ipfs.object.get(dagNode.multihash, null, (err) => {
+        ipfs.object.get(cid, null, (err) => {
           expect(err).to.not.exist()
           done()
         })
@@ -61,14 +62,6 @@ describe('object', () => {
   })
 
   describe('put', () => {
-    it('should callback with error for invalid CID input', (done) => {
-      ipfs.object.put({ multihash: 'INVALID CID' }, (err) => {
-        expect(err).to.exist()
-        expect(err.code).to.equal('ERR_INVALID_CID')
-        done()
-      })
-    })
-
     it('should not error when passed null options', (done) => {
       ipfs.object.put(Buffer.from(hat()), null, (err) => {
         expect(err).to.not.exist()
@@ -80,18 +73,28 @@ describe('object', () => {
   describe('patch.addLink', () => {
     it('should not error when passed null options', (done) => {
       auto({
-        a: (cb) => ipfs.object.put(Buffer.from(hat()), cb),
-        b: (cb) => ipfs.object.put(Buffer.from(hat()), cb)
-      }, (err, nodes) => {
+        a: (cb) => {
+          waterfall([
+            (done) => ipfs.object.put(Buffer.from(hat()), done),
+            (cid, done) => ipfs.object.get(cid, (err, node) => done(err, { node, cid }))
+          ], cb)
+        },
+        b: (cb) => {
+          waterfall([
+            (done) => ipfs.object.put(Buffer.from(hat()), done),
+            (cid, done) => ipfs.object.get(cid, (err, node) => done(err, { node, cid }))
+          ], cb)
+        }
+      }, (err, results) => {
         expect(err).to.not.exist()
 
         const link = {
-          name: nodes.b.name,
-          multihash: nodes.b.multihash,
-          size: nodes.b.size
+          name: 'link-name',
+          cid: results.b.cid,
+          size: results.b.node.size
         }
 
-        ipfs.object.patch.addLink(nodes.a.multihash, link, null, (err) => {
+        ipfs.object.patch.addLink(results.a.cid, link, null, (err) => {
           expect(err).to.not.exist()
           done()
         })
@@ -102,20 +105,33 @@ describe('object', () => {
   describe('patch.rmLink', () => {
     it('should not error when passed null options', (done) => {
       auto({
-        nodeA: (cb) => ipfs.object.put(Buffer.from(hat()), cb),
-        nodeB: (cb) => ipfs.object.put(Buffer.from(hat()), cb),
+        nodeA: (cb) => {
+          waterfall([
+            (done) => ipfs.object.put(Buffer.from(hat()), done),
+            (cid, done) => ipfs.object.get(cid, (err, node) => done(err, { node, cid }))
+          ], cb)
+        },
+        nodeB: (cb) => {
+          waterfall([
+            (done) => ipfs.object.put(Buffer.from(hat()), done),
+            (cid, done) => ipfs.object.get(cid, (err, node) => done(err, { node, cid }))
+          ], cb)
+        },
         nodeAWithLink: ['nodeA', 'nodeB', (res, cb) => {
-          ipfs.object.patch.addLink(res.nodeA.multihash, {
-            name: res.nodeB.name,
-            multihash: res.nodeB.multihash,
-            size: res.nodeB.size
-          }, cb)
+          waterfall([
+            (done) => ipfs.object.patch.addLink(res.nodeA.cid, {
+              name: res.nodeB.node.name,
+              multihash: res.nodeB.cid,
+              size: res.nodeB.node.size
+            }, done),
+            (cid, done) => ipfs.object.get(cid, (err, node) => done(err, { node, cid }))
+          ], cb)
         }]
       }, (err, res) => {
         expect(err).to.not.exist()
 
-        const link = res.nodeAWithLink.links[0]
-        ipfs.object.patch.rmLink(res.nodeAWithLink.multihash, link, null, (err) => {
+        const link = res.nodeAWithLink.node.links[0]
+        ipfs.object.patch.rmLink(res.nodeAWithLink.cid, link, null, (err) => {
           expect(err).to.not.exist()
           done()
         })
@@ -125,10 +141,10 @@ describe('object', () => {
 
   describe('patch.appendData', () => {
     it('should not error when passed null options', (done) => {
-      ipfs.object.put(Buffer.from(hat()), null, (err, dagNode) => {
+      ipfs.object.put(Buffer.from(hat()), null, (err, cid) => {
         expect(err).to.not.exist()
 
-        ipfs.object.patch.appendData(dagNode.multihash, Buffer.from(hat()), null, (err) => {
+        ipfs.object.patch.appendData(cid, Buffer.from(hat()), null, (err) => {
           expect(err).to.not.exist()
           done()
         })
@@ -138,10 +154,10 @@ describe('object', () => {
 
   describe('patch.setData', () => {
     it('should not error when passed null options', (done) => {
-      ipfs.object.put(Buffer.from(hat()), null, (err, dagNode) => {
+      ipfs.object.put(Buffer.from(hat()), null, (err, cid) => {
         expect(err).to.not.exist()
 
-        ipfs.object.patch.setData(dagNode.multihash, Buffer.from(hat()), null, (err) => {
+        ipfs.object.patch.setData(cid, Buffer.from(hat()), null, (err) => {
           expect(err).to.not.exist()
           done()
         })

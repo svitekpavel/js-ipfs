@@ -10,7 +10,8 @@ const schema = Joi.object().keys({
   repoOwner: Joi.boolean().default(true),
   preload: Joi.object().keys({
     enabled: Joi.boolean().default(true),
-    addresses: Joi.array().items(Joi.multiaddr().options({ convert: false }))
+    addresses: Joi.array().items(Joi.multiaddr().options({ convert: false })),
+    interval: Joi.number().integer().default(30 * 1000)
   }).allow(null),
   init: Joi.alternatives().try(
     Joi.boolean(),
@@ -28,6 +29,7 @@ const schema = Joi.object().keys({
   }).allow(null),
   EXPERIMENTAL: Joi.object().keys({
     pubsub: Joi.boolean(),
+    ipnsPubsub: Joi.boolean(),
     sharding: Joi.boolean(),
     dht: Joi.boolean()
   }).allow(null),
