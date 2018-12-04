@@ -73,8 +73,8 @@ skipOnWindows('id endpoint', () => {
 })
 
 const idResult = {
-  ID: 'QmQ2zigjQikYnyYUSXZydNXrDRhBut2mubwJBaLXobMt3A',
-  PublicKey: 'CAASpgIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC2SKo/HMFZeBml1AF3XijzrxrfQXdJzjePBZAbdxqKR1Mc6juRHXij6HXYPjlAk01BhF1S3Ll4Lwi0cAHhggf457sMg55UWyeGKeUv0ucgvCpBwlR5cQ020i0MgzjPWOLWq1rtvSbNcAi2ZEVn6+Q2EcHo3wUvWRtLeKz+DZSZfw2PEDC+DGPJPl7f8g7zl56YymmmzH9liZLNrzg/qidokUv5u1pdGrcpLuPNeTODk0cqKB+OUbuKj9GShYECCEjaybJDl9276oalL9ghBtSeEv20kugatTvYy590wFlJkkvyl+nPxIH0EEYMKK9XRWlu9XYnoSfboiwcv8M3SlsjAgMBAAE=',
+  ID: 'QmYvQVFDHUviWGYYJn3Tn4bntW648bPv4drAuwUDBS9Hsb',
+  PublicKey: 'CAASpgIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDFP8jqHZtp8IAyHpq3Y3Xdr3ASqcdXtp4WNb2ljTwKLwaZWb1R4LCt4lFIiTDURXZAAw1kFXa7bwTO6eypseUcOnczpod4RXjhKH03mljjQK9CyL2LfFJH/YOQNM41nuYaT+sk/ENwlHmYnhcJdYyLNRwA7pYOZpnR518M5hAonNHi3H8nY7VJ0gg9tw7NEO5h8nG7XzVctK/ipZvo4dG2xVFynFR6/OUCkKbxlyfRR6ETM6CJVKYwiB933WaDJCTcl55xbbGWvSSbQJCCdx/xTZENZ+JWJoMyBoeB9v55hjpX1K2ObPpBjQ57irPDjNpnC8L8dgGq69QdmGN0h081AgMBAAE=',
   Addresses: ['/ip4/0.0.0.0/tcp/0'],
   AgentVersion: 'js-ipfs',
   ProtocolVersion: '9000'
